@@ -1,23 +1,52 @@
-# TODO: Remove the numbers at the beginning
-# TODO: Remove The Latin Library at the end
-# TODO: Remove The Classics Page at the end
-
 import os
 import nltk
+import re
+from string import digits
 
 ignore_list = ['.DS_Store']
 
-def tokenize():
-  file = open('library/1Catullus.txt')
-  raw = file.read()
-  tokens = nltk.word_tokenize(raw)
-  print(tokens)
+def remove_arabic_numbers(raw_text):
+  remove_digits = str.maketrans('', '', digits)
+  output = raw_text.translate(remove_digits)
+  return output
+  
+def remove_brackets(raw_text):
+  output = re.sub("[\(\[].*?[\)\]]", "", raw_text)
+  return output
+
+def remove_end_note(raw_text):
+  endOfText = raw_text.find("The Latin Library")
+  output = raw_text[:endOfText]
+  return output
+    
+def tokenize(raw_text):
+  tokens = nltk.word_tokenize(raw_text)
   text = nltk.Text(tokens)
-  text.collocations()
-  endOfText = raw.find("The Latin Library")
-  print(endOfText)
+  return text
 
-
+def clean_directory(input_directory, output_directory):
+  """ Runs through all the files in the specified directory assuming that those are files from the
+  Latin Library and cleans the data with the set of defined methods above. As the format of the files
+  is not very consistent, we clean only the major items.
+  I decided to not remove latin numbers from the text to give the ML algorithm also some understanding
+  about those numbers.
+  """
+  listOfFiles = os.listdir(input_directory)
+  for fileName in listOfFiles:
+    if fileName in ignore_list:
+        continue
+    print("Processing file: ", fileName)
+    infile = open(input_directory + '/' + fileName)
+    raw = infile.read()
+    infile.close()
+    raw = remove_end_note(raw)
+    raw = remove_brackets(raw)
+    raw = remove_arabic_numbers(raw)
+    outfile = open(output_directory + '/' + fileName, 'w')
+    outfile.write(raw)
+    outfile.close()
+    
+    
 def find_duplicates(directory):
   """ Finds duplicate files in the specified directory and also counts the number of unique files.
   The function prints the required remove commands, but does not actually delete the files.
@@ -43,5 +72,4 @@ def find_duplicates(directory):
   print('Found duplicates: ', duplicateCount) 
   print('Found unique files: ', fileCount)  
       
-find_duplicates('./library')
-
+clean_directory('library', 'clean_library')
