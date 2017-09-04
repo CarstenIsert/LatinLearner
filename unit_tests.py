@@ -1,5 +1,6 @@
 import unittest
 import clean_data
+import embedding
 
 class TestCleaning(unittest.TestCase):
 
@@ -17,6 +18,22 @@ class TestCleaning(unittest.TestCase):
         
     def testRemoveEndNote(self):
         self.assertEqual('gravis cruciatus adferente, obversis in Demetrium * * * Tacitus ', clean_data.remove_end_note('gravis cruciatus adferente, obversis in Demetrium * * * Tacitus The Latin Library The Classics Page'))
+        
+class TestReadingData(unittest.TestCase):
+    
+    def testLoadData1(self):
+        data = embedding.read_data('test_library')
+        self.assertEqual(['Rerum', 'gestarum', 'divi', 'Augusti', ',', 'quibus', 'orbem', 'terrarum', 'imperio', 'populi'], data[:10])
+        self.assertEqual(126, len(data))
+
+    def testGenerateDataSet(self):
+        texts = embedding.read_data('test_library')
+        int_text, freq_dist, word2int, int2word, vocabulary_size = embedding.generate_dataset(texts)
+        self.assertEqual([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 0, 0, 0], int_text[:20])
+        self.assertEqual([('HAPAX', 98), (',', 15), ('et', 4), ('in', 3), ('.', 2), ('cum', 2), ('ludere', 2)], freq_dist)
+        self.assertEqual({'HAPAX': 0, ',': 1, 'et': 2, 'in': 3, '.': 4, 'cum': 5, 'ludere': 6}, word2int)
+        self.assertEqual({0: 'HAPAX', 1: ',', 2: 'et', 3: 'in', 4: '.', 5: 'cum', 6: 'ludere'}, int2word)
+        self.assertEqual(6, vocabulary_size)
         
 
 if __name__ == "__main__":
