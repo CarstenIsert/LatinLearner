@@ -6,7 +6,8 @@ Deep Learning project for the Latin Language with the ultimate goal to build a L
 
 This project has mainly educational purposes.
 1. Learn the technologies required to build a deep learning system that can process Latin Language
-2. If this is working, provide the chatbot as a tool for use in school or university or on a website / app / Facebook etc.
+2. Practice coding skills, github, testing etc.
+3. Provide the Latin language model as a tool for use in school or university or on a website / app / Facebook etc.
 
 ## Data
 
@@ -14,8 +15,8 @@ To build a useful language model it is essential to have enough high quality inp
 
 There are several sources for latin text on the internet.
 
-* The Latin Library: http://thelatinlibrary.com/index.html
-* Perseus Database: http://www.perseus.tufts.edu/hopper/opensource/download
+* The [Latin Library](http://thelatinlibrary.com/index.html)
+* [Perseus Database](http://www.perseus.tufts.edu/hopper/opensource/download)
 * Many more
 
 As I wanted to learn something on data collection and scraping, I developed the script [`scrape_latin_texts.py`](scrape_latin_texts.py) to download the data from the Latin Library and store those as text files. From the Perseus Database you can directly download a collection of latin and greek texts with English Translations. However, extensive postprocessing is required here which is adressed in the next section.
@@ -36,7 +37,8 @@ Additionally, the code will also remove certain parts of the files like arabic n
 * First build an Embedding of the Latin Language with word2vec and visualize it
 * Concept for further processing as we don't have explicit questions / answers or translations which can be easily build into a cost function.
 * Planning to use a seq2seq model.
-* Want to use Keras for this
+* Want to use Keras for this to get some experience with Keras with Tensorflow backend
+* A text generation model can be used to generate text, maybe conditioned on some input text
 
 ## Chatbot
 
@@ -49,3 +51,9 @@ Anybody interested in working together on this please contact me through the mai
 ## License
 
 Using GPL v3 for this project. Details see [LICENSE](LICENSE) file in the repo.
+
+## References
+
+* Keras word2vec Tutorial: http://adventuresinmachinelearning.com/word2vec-keras-tutorial/
+* Keras Examples: https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
+* Tensorflow word2vec Tutorial https://www.tensorflow.org/tutorials/word2vec
