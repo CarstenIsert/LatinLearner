@@ -72,4 +72,5 @@ def find_duplicates(directory):
   print('Found duplicates: ', duplicateCount) 
   print('Found unique files: ', fileCount)  
       
+find_duplicates('library')
 clean_directory('library', 'clean_library')
