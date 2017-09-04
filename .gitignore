@@ -99,3 +99,11 @@ ENV/
 
 # mypy
 .mypy_cache/
+/.project
+/.pydevproject
+
+# project
+library
+clean_library
+Perseus
+/.DS_Store
