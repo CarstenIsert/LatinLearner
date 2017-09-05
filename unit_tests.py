@@ -18,6 +18,12 @@ class TestCleaning(unittest.TestCase):
         
     def testRemoveEndNote(self):
         self.assertEqual('gravis cruciatus adferente, obversis in Demetrium * * * Tacitus ', clean_data.remove_end_note('gravis cruciatus adferente, obversis in Demetrium * * * Tacitus The Latin Library The Classics Page'))
+
+    def testLowerCase(self):
+        self.assertEqual('the cat sat on the big cat sat the cat', clean_data.lower_case('The cat Sat on THE biG CAT saT tHE Cat'))
+        
+    def testCleanText(self):
+        self.assertEqual('this text  has  text ', clean_data.clean_text('This TEXT [1] has 123 text The Latin Library'))
         
 class TestReadingData(unittest.TestCase):
     
