@@ -43,6 +43,12 @@ Additionally, the code will also remove certain parts of the files like arabic n
 ## Chatbot
 
 * Maybe build an iPhone App or something in WhatsApp, Alexa Skill etc. TBD
+
+## Environment
+
+* This package is using Tensorflow 1.3 and Keras which is included in Tensorflow.
+* As there have been changes in the API of Keras this package is required.
+* You can generate the environment to run this using the provided [environment file](environment.yml) and then run `conda env create -f environment.yml`
  
 ## Contributing
 
