@@ -73,7 +73,7 @@ class WordEmbedding:
     """ Class for building a model for embedding words.
     """
     window_size = 3
-    embedding_vector_size = 250
+    embedding_vector_size = 300
     epochs = 900000
     size_of_similarity_set = 16
 
@@ -101,10 +101,12 @@ class WordEmbedding:
         print(couples[:10], self.sample_labels[:10])
 
     def build(self):
+        # Just feed one example into target and context
         input_target = K.layers.Input((1,))
         input_context = K.layers.Input((1,))
         
         embedding = K.layers.Embedding(self.vocabulary_size, self.embedding_vector_size, input_length=1, name='embedding')
+
         target = embedding(input_target)
         target_word_vector = K.layers.Reshape((self.embedding_vector_size, 1))(target)
         context = embedding(input_context)
@@ -147,7 +149,7 @@ class WordEmbedding:
                 log_str = '%s %s,' % (log_str, close_word)
             print(log_str)
         
-    def train(self):
+    def optimize(self):
         input_target = np.zeros((1,))
         input_context = np.zeros((1,))
         output = np.zeros((1,))
@@ -159,7 +161,7 @@ class WordEmbedding:
             loss = self.model.train_on_batch([input_target, input_context], output)
             if cnt % 100 == 0:
                 print("Iteration {}, loss={}".format(cnt, loss))
-            if cnt % 1000 == 1:
+            if cnt % 5000 == 1:
                 self._check_similarity()
 
     def process(self):
@@ -171,6 +173,7 @@ class WordEmbedding:
         self.train()
         
     # TODO: Save network and provide option to load the network
-    # TODO: Parallelize model to improve performance for AWS
+    # TODO: Run model on AWS
+    # TODO: Check out Tensorflow implementation
         
 
