@@ -22,9 +22,15 @@ class TestCleaning(unittest.TestCase):
 
     def testLowerCase(self):
         self.assertEqual('the cat sat on the big cat sat the cat', clean_data.lower_case('The cat Sat on THE biG CAT saT tHE Cat'))
+
+    def testCleanWhiteSpace(self):
+        self.assertEqual("Please don't hurt me.", clean_data.remove_white_space("Please \n don't \t hurt \x0b me."))        
+        
+    def testCleanWhiteSpace2(self):
+        self.assertEqual("m. tvlli ciceronis epistvlarvm ad qvintvm fratrem liber primvs iiiiiiiv", clean_data.remove_white_space("    m. tvlli ciceronis epistvlarvm ad qvintvm fratrem liber primvs\n\n\n\n\niiiiiiiv\n\n\n  \n"))        
         
     def testCleanText(self):
-        self.assertEqual('this text  has  text ', clean_data.clean_text('This TEXT [1] has 123 text The Latin Library'))
+        self.assertEqual('this text has text', clean_data.clean_text('This TEXT [1] has 123 text The Latin Library'))
         
 class TestReadingData(unittest.TestCase):
     def setUp(self):

@@ -22,11 +22,16 @@ def lower_case(raw_text):
     output = raw_text.lower()
     return output
 
+def remove_white_space(raw_text):
+    output = ' '.join(raw_text.split())
+    return output
+
 def clean_text(raw_text):
     output = remove_end_note(raw_text)
     output = remove_brackets(output)
     output = remove_arabic_numbers(output)
     output = lower_case(output)
+    output = remove_white_space(output)
     return output
     
 def clean_directory(input_directory, output_directory):
@@ -75,3 +80,4 @@ def find_duplicates(directory):
     print('Found duplicates: ', duplicate_count) 
     print('Found unique files: ', file_count)  
       
+clean_directory('library', 'clean_library')
