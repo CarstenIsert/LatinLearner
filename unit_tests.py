@@ -1,7 +1,8 @@
 import unittest
+import numpy as np
 import clean_data
 import embedding
-import numpy as np
+import text_handling
 
 class TestCleaning(unittest.TestCase):
 
@@ -34,25 +35,25 @@ class TestCleaning(unittest.TestCase):
         
 class TestReadingData(unittest.TestCase):
     def setUp(self):
-        self.text_data = embedding.TextData()
+        self.text_data = text_handling.TextData()
     
     def testLoadData1(self):
-        data = self.text_data.read_data('test_library')
+        data = self.text_data.load_tokenized_data('test_library')
         self.assertEqual(['Rerum', 'gestarum', 'divi', 'Augusti', ',', 'quibus', 'orbem', 'terrarum', 'imperio', 'populi'], data[:10])
         self.assertEqual(126, len(data))
 
     def testGenerateDataSet(self):
-        texts = self.text_data.read_data('test_library')
-        int_text, int2word, vocabulary_size = self.text_data.generate_dataset(texts)
+        texts = self.text_data.load_tokenized_data('test_library')
+        int_text, int2word, vocabulary_size = self.text_data.generate_tokenized_dataset(texts)
         self.assertEqual([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 0, 0, 0], int_text[:20])
         self.assertEqual({0: 'HAPAX', 1: ',', 2: 'et', 3: 'in', 4: '.', 5: 'cum', 6: 'ludere'}, int2word)
         self.assertEqual(6, vocabulary_size)
         
 class TestWordEmbedding(unittest.TestCase):
     def setUp(self):
-        self.text_data = embedding.TextData()
-        texts = self.text_data.read_data('test_library')
-        int_text, int2word, vocabulary_size = self.text_data.generate_dataset(texts)
+        self.text_data = text_handling.TextData()
+        texts = self.text_data.load_tokenized_data('test_library')
+        int_text, int2word, vocabulary_size = self.text_data.generate_tokenized_dataset(texts)
         self.embedding = embedding.WordEmbedding(int_text, int2word, vocabulary_size)
         np.random.seed(1)
         
