@@ -5,7 +5,8 @@ import text_handling
 
 def get_batches(arr, n_seqs, n_steps):
     '''Create a generator that returns batches of size
-       n_seqs x n_steps from arr.
+       n_seqs x n_steps from arr. It will yield a different
+       minibatch each time it is called.
        
        Arguments
        ---------
@@ -30,9 +31,31 @@ def get_batches(arr, n_seqs, n_steps):
         y = np.zeros_like(x)
         y[:, :-1], y[:, -1] = x[:, 1:], x[:, 0]
         yield x, y
+
+def split_text(input_text, training_percentage=0.9):
+    '''Split the given text into the three mandatory sets for training, validation and testing
+       The ratio is currently set at 90% training size and an even split for test and validation of the rest.  
+
+       Arguments
+       ---------
+       input_text: The data to split
+       training_percentage: The percentage of data which will go into the training set. 
+    '''
+    split_frac = training_percentage
+    position_to_split = int(len(input_text) * split_frac)
+    train_text, val_text = input_text[:position_to_split], input_text[position_to_split:]
+    
+    position_to_split = len(val_text) // 2
+    val_text, test_text = val_text[:position_to_split], val_text[position_to_split:]
+    
+    print("\t\t\tFeature Shapes:")
+    print("Train set: \t\t{}".format(train_text.shape), 
+          "\nValidation set: \t{}".format(val_text.shape),
+          "\nTest set: \t\t{}".format(test_text.shape))
+    return train_text, val_text, test_text
         
 def build_inputs(batch_size, num_steps):
-    ''' Define placeholders for inputs, targets, and dropout 
+    ''' Define TensorFlow placeholders for inputs, targets, and dropout 
     
         Arguments
         ---------
@@ -64,19 +87,21 @@ def build_lstm(lstm_size, num_layers, batch_size, keep_prob):
         lstm = tf.contrib.rnn.BasicLSTMCell(num_units)
         drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=keep_prob)
         return drop
-
-    if tf.__version__ == '1.0.0':
+        
+# TODO: Need to fix this later. When launching in a python environment this works...
+# Now we assume that we have TF 1.1 or greater...
+#    if tf.__version__ == '1.0.0':
         ### Build the LSTM Cell
         # Use a basic LSTM cell
-        lstm = tf.contrib.rnn.BasicLSTMCell(lstm_size)
+#        lstm = tf.contrib.rnn.BasicLSTMCell(lstm_size)
 
         # Add dropout to the cell outputs
-        drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=keep_prob)
+#        drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=keep_prob)
 
         # Stack up multiple LSTM layers, for deep learning
-        cell = tf.contrib.rnn.MultiRNNCell([drop] * num_layers)
-    else:
-        cell = tf.contrib.rnn.MultiRNNCell([build_cell(lstm_size, keep_prob) for _ in range(num_layers)])    
+        #cell = tf.contrib.rnn.MultiRNNCell([drop] * num_layers)
+#    else:
+    cell = tf.contrib.rnn.MultiRNNCell([build_cell(lstm_size, keep_prob) for _ in range(num_layers)])    
     
     initial_state = cell.zero_state(batch_size, tf.float32)
     
@@ -93,7 +118,6 @@ def build_output(lstm_output, in_size, out_size):
         out_size: Size of this softmax layer
     
     '''
-
     # Reshape output so it's a bunch of rows, one row for each step for each sequence.
     # Concatenate lstm_output over axis 1 (the columns)
     seq_output = tf.concat(lstm_output, axis = 1)
@@ -126,7 +150,6 @@ def build_loss(logits, targets, lstm_size, num_classes):
         num_classes: Number of classes in targets
         
     '''
-    
     # One-hot encode targets and reshape to match logits, one row per sequence per step
     y_one_hot = tf.one_hot(targets, num_classes)
     y_reshaped =  tf.reshape(y_one_hot, logits.get_shape())
@@ -134,6 +157,8 @@ def build_loss(logits, targets, lstm_size, num_classes):
     # Softmax cross entropy loss
     loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_reshaped)
     loss = tf.reduce_mean(loss)
+    
+    # TODO: Later add accuracy
     
     return loss
 
@@ -145,7 +170,6 @@ def build_optimizer(loss, learning_rate, grad_clip):
         learning_rate: Learning rate for optimizer
     
     '''
-    
     # Optimizer for training, using gradient clipping to control exploding gradients
     tvars = tf.trainable_variables()
     grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), grad_clip)
@@ -162,7 +186,19 @@ def pick_top_n(preds, vocab_size, top_n=5):
     c = np.random.choice(vocab_size, 1, p=p)[0]
     return c
 
-def sample(checkpoint, n_samples, lstm_size, vocab_size, prime="The "):
+def sample(checkpoint, n_samples, lstm_size, prime="Gallia "):
+    ''' Generate a text sample of specified size from the specified model checkpoint.
+        Note that the network has to be reconfigured with a (1, 1) input size defined
+        by the sampling=True parameter for the setup and the weights have to be reloaded.
+
+        Arguments
+        ---------
+        checkpoint: Model checkpoint
+        n_samples: Number of characters to generate
+        lstm_size: Number of LSTM hidden units
+        prime: Initial input for the model to generate the text based upon
+    
+    '''
     samples = [c for c in prime]
     model = CharRNN(character_set_size, lstm_size=lstm_size, sampling=True)
     saver = tf.train.Saver()
@@ -181,7 +217,7 @@ def sample(checkpoint, n_samples, lstm_size, vocab_size, prime="The "):
         c = pick_top_n(preds, character_set_size)
         samples.append(int2char_mapping[c])
 
-        for i in range(n_samples):
+        for _ in range(n_samples):
             x[0,0] = c
             feed = {model.inputs: x,
                     model.keep_prob: 1.,
@@ -194,7 +230,9 @@ def sample(checkpoint, n_samples, lstm_size, vocab_size, prime="The "):
         
     return ''.join(samples)
 
+
 class CharRNN:
+    # TODO: Why are the methods to build the network NOT in this class? Refactor!
     
     def __init__(self, num_classes, batch_size=64, num_steps=50, 
                        lstm_size=128, num_layers=2, learning_rate=0.001, 
@@ -232,41 +270,44 @@ class CharRNN:
         
 
 
-batch_size = 100        # Sequences per batch
-num_steps = 100         # Number of sequence steps per batch
-lstm_size = 512         # Size of hidden layers in LSTMs
-num_layers = 2          # Number of LSTM layers
+batch_size = 50         # Sequences per batch (default 100)
+num_steps = 20          # Number of sequence steps per batch (default 100)
+lstm_size = 128         # Size of hidden layers in LSTMs
+num_layers = 1          # Number of LSTM layers
 learning_rate = 0.001   # Learning rate
 keep_prob = 0.5         # Dropout keep probability        
+epochs = 10             # Number of epochs, i.e. run through the whole training set
 
-#batches = get_batches(encoded, 10, 50)
-#x, y = next(batches)
+continue_training = True
 
-epochs = 10
-save_every_n_iterations = 500
+save_every_n_iterations = 20
+validate_every_n_iterations = 5
+print_every_n_iterations = 2
 
 data = text_handling.TextData()
-latin_text = data.load_character_data('clean_library')
+latin_text = data.load_character_data('small_library')
 integer_text, int2char_mapping, char2int_mapping, character_set_size = data.generate_character_dataset(latin_text)
+
+train_text, val_text, test_text = split_text(integer_text)
 
 model = CharRNN(character_set_size, batch_size=batch_size, num_steps=num_steps,
                 lstm_size=lstm_size, num_layers=num_layers, 
                 learning_rate=learning_rate)
 
 saver = tf.train.Saver(max_to_keep=100)
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    
-    # Use the line below to load a checkpoint and resume training
-    # TODO: Introduce some programmatical solution
-    #saver.restore(sess, 'checkpoints/i5400_l512.ckpt')
+with tf.Session() as sess:   
+    if continue_training == False:
+        sess.run(tf.global_variables_initializer())
+    else:
+        checkpoint = tf.train.latest_checkpoint('checkpoints')
+        saver.restore(sess, checkpoint)
+
     counter = 0
     print('Started training...')
-    for e in range(epochs):
+    for current_epoch in range(epochs):
         # Train network
         new_state = sess.run(model.initial_state)
-        loss = 0
-        for x, y in get_batches(integer_text, batch_size, num_steps):
+        for x, y in get_batches(train_text, batch_size, num_steps):
             counter += 1
             start = time.time()
             feed = {model.inputs: x,
@@ -280,16 +321,33 @@ with tf.Session() as sess:
             
             end = time.time()
         
-            if (counter % save_every_n_iterations == 0):
-                print('Epoch: {}/{}... '.format(e+1, epochs),
+            # TODO: Better progress solution! TQPM or so?!
+            if (counter % print_every_n_iterations) == 0:
+                print('Epoch: {}/{}... '.format(current_epoch+1, epochs),
                       'Training Step: {}... '.format(counter),
                       'Training loss: {:.4f}... '.format(batch_loss),
                       '{:.4f} sec/batch'.format((end-start)))
-
+                
+            if (counter % validate_every_n_iterations) == 0:
+                val_losses = []
+                val_state = sess.run(model.initial_state)
+                for x, y in get_batches(val_text, batch_size, num_steps):
+                    feed = {model.inputs: x,
+                            model.targets: y,
+                            model.keep_prob: 1.,
+                            model.initial_state: val_state}
+                    val_loss, val_state = sess.run([model.loss, 
+                                                    model.final_state], 
+                                                    feed_dict=feed)
+                    val_losses.append(val_loss)
+                print("Val loss: {:.3f}".format(np.mean(val_losses)))
+                
+            if (counter % save_every_n_iterations) == 0:
                 saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
     
+    print("Finished training...")
     saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
     
 checkpoint = tf.train.latest_checkpoint('checkpoints')
-samp = sample(checkpoint, 2000, lstm_size, integer_text, prime="et ")
+samp = sample(checkpoint, 100, lstm_size, prime="Gallia ")
 print(samp)
