@@ -180,6 +180,8 @@ def build_optimizer(loss, learning_rate, grad_clip):
 
 
 def pick_top_n(preds, vocab_size, top_n=5):
+    '''Choose the next character based on the top_n most likely characters
+    '''
     p = np.squeeze(preds)
     p[np.argsort(p)[:-top_n]] = 0
     p = p / np.sum(p)
@@ -190,43 +192,59 @@ def sample(checkpoint, n_samples, lstm_size, prime="Gallia "):
     ''' Generate a text sample of specified size from the specified model checkpoint.
         Note that the network has to be reconfigured with a (1, 1) input size defined
         by the sampling=True parameter for the setup and the weights have to be reloaded.
+        The sample will be generated up to a maximum length or shorter if the network
+        generates some kind of stop token.
 
         Arguments
         ---------
         checkpoint: Model checkpoint
-        n_samples: Number of characters to generate
+        n_samples: Maximum number of characters to generate
         lstm_size: Number of LSTM hidden units
         prime: Initial input for the model to generate the text based upon
     
     '''
-    samples = [c for c in prime]
-    model = CharRNN(character_set_size, lstm_size=lstm_size, sampling=True)
-    saver = tf.train.Saver()
+    samples = []
+    model = CharRNN(character_set_size, lstm_size=lstm_size, num_layers=num_layers, 
+                    sampling=True)
+    saver = tf.train.Saver(max_to_keep=100)
+    
     with tf.Session() as sess:
         saver.restore(sess, checkpoint)
         new_state = sess.run(model.initial_state)
-        for c in prime:
+        
+        # First feed in the characters in the primer
+        for character in prime:
             x = np.zeros((1, 1))
-            x[0,0] = char2int_mapping[c]
+            x[0,0] = char2int_mapping[character]
             feed = {model.inputs: x,
                     model.keep_prob: 1.,
                     model.initial_state: new_state}
             preds, new_state = sess.run([model.prediction, model.final_state], 
                                          feed_dict=feed)
 
-        c = pick_top_n(preds, character_set_size)
-        samples.append(int2char_mapping[c])
+        int_character = pick_top_n(preds, character_set_size, 3)
+        samples.append(int2char_mapping[int_character])
 
+        # Now always use the last character to generate the next one.
+        # If we encounter a stop item, we finish.
         for _ in range(n_samples):
-            x[0,0] = c
+            x[0,0] = int_character
             feed = {model.inputs: x,
                     model.keep_prob: 1.,
                     model.initial_state: new_state}
             preds, new_state = sess.run([model.prediction, model.final_state], 
                                          feed_dict=feed)
 
-            c = pick_top_n(preds, character_set_size)
-            samples.append(int2char_mapping[c])
+            int_character = pick_top_n(preds, character_set_size, 3)
+            character = int2char_mapping[int_character]
+
+            # Stop text generation whenever we find something like a marker
+            # Do not append the punctuation
+            if character in '.!;?':
+                break
+
+            samples.append(character)
+            
         
     return ''.join(samples)
 
@@ -269,6 +287,63 @@ class CharRNN:
         self.optimizer = build_optimizer(self.loss, learning_rate, grad_clip)
         
 
+def train_model(continue_training = False):
+    saver = tf.train.Saver(max_to_keep=100)
+    with tf.Session() as sess:   
+        if continue_training == False:
+            sess.run(tf.global_variables_initializer())
+        else:
+            checkpoint = tf.train.latest_checkpoint('checkpoints')
+            saver.restore(sess, checkpoint)
+    
+        counter = 0
+        print('Started training...')
+        for current_epoch in range(epochs):
+            # Train network
+            new_state = sess.run(model.initial_state)
+            for x, y in get_batches(train_text, batch_size, num_steps):
+                counter += 1
+                start = time.time()
+                feed = {model.inputs: x,
+                        model.targets: y,
+                        model.keep_prob: keep_prob,
+                        model.initial_state: new_state}
+                batch_loss, new_state, _ = sess.run([model.loss, 
+                                                     model.final_state, 
+                                                     model.optimizer], 
+                                                     feed_dict=feed)
+                
+                end = time.time()
+            
+                # TODO: Better progress solution! TQPM or so?!
+                if (counter % print_every_n_iterations) == 0:
+                    print('Epoch: {}/{}... '.format(current_epoch+1, epochs),
+                          'Training Step: {}... '.format(counter),
+                          'Training loss: {:.4f}... '.format(batch_loss),
+                          '{:.4f} sec/batch'.format((end-start)))
+    
+                # Save the model before doing the validation
+                if (counter % save_every_n_iterations) == 0:
+                    saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
+                    
+                if (counter % validate_every_n_iterations) == 0:
+                    val_losses = []
+                    val_state = sess.run(model.initial_state)
+                    for x, y in get_batches(val_text, batch_size, num_steps):
+                        feed = {model.inputs: x,
+                                model.targets: y,
+                                model.keep_prob: 1.,
+                                model.initial_state: val_state}
+                        val_loss, val_state = sess.run([model.loss, 
+                                                        model.final_state], 
+                                                        feed_dict=feed)
+                        val_losses.append(val_loss)
+                    print("Val loss: {:.3f}".format(np.mean(val_losses)))
+                    
+        
+        print("Finished training...")
+        saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
+
 
 batch_size = 50         # Sequences per batch (default 100)
 num_steps = 20          # Number of sequence steps per batch (default 100)
@@ -279,6 +354,7 @@ keep_prob = 0.5         # Dropout keep probability
 epochs = 10             # Number of epochs, i.e. run through the whole training set
 
 continue_training = True
+sample_only = True
 
 save_every_n_iterations = 20
 validate_every_n_iterations = 5
@@ -287,67 +363,24 @@ print_every_n_iterations = 2
 data = text_handling.TextData()
 latin_text = data.load_character_data('small_library')
 integer_text, int2char_mapping, char2int_mapping, character_set_size = data.generate_character_dataset(latin_text)
-
 train_text, val_text, test_text = split_text(integer_text)
 
-model = CharRNN(character_set_size, batch_size=batch_size, num_steps=num_steps,
-                lstm_size=lstm_size, num_layers=num_layers, 
-                learning_rate=learning_rate)
+if sample_only == True:
+    checkpoint = tf.train.latest_checkpoint('checkpoints')
+    print("Sampling from checkpoint: ", checkpoint)
+    samp = sample(checkpoint, 100, lstm_size, prime='Salve caesar')
+    print(samp)    
+    while True:
+        user_text = input("Prompt or exit: ")
+        user_text = str.lower(user_text)
+        if user_text == "exit":
+            break
+        samp = sample(checkpoint, 100, lstm_size, prime=user_text)
+        print(samp)    
+else:
+    model = CharRNN(character_set_size, batch_size=batch_size, num_steps=num_steps,
+                    lstm_size=lstm_size, num_layers=num_layers, 
+                    learning_rate=learning_rate)
 
-saver = tf.train.Saver(max_to_keep=100)
-with tf.Session() as sess:   
-    if continue_training == False:
-        sess.run(tf.global_variables_initializer())
-    else:
-        checkpoint = tf.train.latest_checkpoint('checkpoints')
-        saver.restore(sess, checkpoint)
-
-    counter = 0
-    print('Started training...')
-    for current_epoch in range(epochs):
-        # Train network
-        new_state = sess.run(model.initial_state)
-        for x, y in get_batches(train_text, batch_size, num_steps):
-            counter += 1
-            start = time.time()
-            feed = {model.inputs: x,
-                    model.targets: y,
-                    model.keep_prob: keep_prob,
-                    model.initial_state: new_state}
-            batch_loss, new_state, _ = sess.run([model.loss, 
-                                                 model.final_state, 
-                                                 model.optimizer], 
-                                                 feed_dict=feed)
-            
-            end = time.time()
-        
-            # TODO: Better progress solution! TQPM or so?!
-            if (counter % print_every_n_iterations) == 0:
-                print('Epoch: {}/{}... '.format(current_epoch+1, epochs),
-                      'Training Step: {}... '.format(counter),
-                      'Training loss: {:.4f}... '.format(batch_loss),
-                      '{:.4f} sec/batch'.format((end-start)))
-                
-            if (counter % validate_every_n_iterations) == 0:
-                val_losses = []
-                val_state = sess.run(model.initial_state)
-                for x, y in get_batches(val_text, batch_size, num_steps):
-                    feed = {model.inputs: x,
-                            model.targets: y,
-                            model.keep_prob: 1.,
-                            model.initial_state: val_state}
-                    val_loss, val_state = sess.run([model.loss, 
-                                                    model.final_state], 
-                                                    feed_dict=feed)
-                    val_losses.append(val_loss)
-                print("Val loss: {:.3f}".format(np.mean(val_losses)))
-                
-            if (counter % save_every_n_iterations) == 0:
-                saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
-    
-    print("Finished training...")
-    saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, lstm_size))
-    
-checkpoint = tf.train.latest_checkpoint('checkpoints')
-samp = sample(checkpoint, 100, lstm_size, prime="Gallia ")
-print(samp)
+    train_model(continue_training)
+  
