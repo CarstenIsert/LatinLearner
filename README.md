@@ -34,7 +34,8 @@ Additionally, the code will also remove certain parts of the files like arabic n
 
 ## Models
 
-* First build an Embedding of the Latin Language with word2vec and visualize it
+* First build an Embedding of the Latin Language with word2vec and visualize it. Sample code is available in the [embedding.py](embedding.py) file using Keras. The results are not really convincing so far. 
+* Based on the [Udacity AI Nanodegree Anna KaRNNa jupyter notebook](https://github.com/udacity/deep-learning/tree/master/intro-to-rnns) for text generation, I adopted the code to generate Latin text and put it into a [seperate Python file](LSTM_model.py). The code is also available in the [notebook](LatinLeaRNNr.ipynb). 
 * Concept for further processing as we don't have explicit questions / answers or translations which can be easily build into a cost function.
 * Planning to use a seq2seq model.
 * Want to use Keras for this to get some experience with Keras with Tensorflow backend
