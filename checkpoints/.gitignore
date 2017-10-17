@@ -1,1 +1,4 @@
-/checkpoint
+# ignore everything except .gitignore
+*
+!.gitignore
+

@@ -67,6 +67,10 @@ docs/_build/
 # PyBuilder
 target/
 
+# Tensorflow
+checkpoints/
+logs/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
