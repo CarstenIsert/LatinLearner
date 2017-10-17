@@ -80,4 +80,3 @@ def find_duplicates(directory):
     print('Found duplicates: ', duplicate_count) 
     print('Found unique files: ', file_count)  
       
-clean_directory('library', 'clean_library')

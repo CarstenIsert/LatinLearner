@@ -78,7 +78,6 @@ class TextData:
         """
         Load all the text data in the specified directory into one large string.
         """
-        # TODO: Need to write unit tests
         list_of_files = os.listdir(input_directory)
         output_text = ""
         for file_name in list_of_files:
@@ -95,7 +94,6 @@ class TextData:
         Generate an encoding of the text for each character as numpy array and provide the mapping to
         go back from the codes to the letters.
         """
-        # TODO: Need to write unit tests
         character_set = sorted(set(text))
         char2int_mapping = {character: idx for idx, character in enumerate(character_set)}
         int2char_mapping = dict(enumerate(character_set))
@@ -105,14 +103,15 @@ class TextData:
         return integer_text, int2char_mapping, char2int_mapping, character_set_size
 
     def split_int_text(self, input_text, training_percentage=0.9):
-        '''Split the given text into the three mandatory sets for training, validation and testing
-           The ratio is currently set at 90% training size and an even split for test and validation of the rest.  
+        """
+        Split the given text into the three mandatory sets for training, validation and testing
+        The ratio is currently set at 90% training size and an even split for test and validation of the rest.  
     
-           Arguments
-           ---------
-           input_text: The text data to split
-           training_percentage: The percentage of data which will go into the training set. 
-        '''
+        Arguments
+        ---------
+        input_text: The text data to split
+        training_percentage: The percentage of data which will go into the training set. 
+        """
         split_frac = training_percentage
         position_to_split = int(len(input_text) * split_frac)
         train_text, val_text = input_text[:position_to_split], input_text[position_to_split:]
@@ -120,10 +119,6 @@ class TextData:
         position_to_split = len(val_text) // 2
         val_text, test_text = val_text[:position_to_split], val_text[position_to_split:]
         
-        print("\t\t\tFeature Shapes:")
-        print("Train set: \t\t{}".format(train_text.shape), 
-              "\nValidation set: \t{}".format(val_text.shape),
-              "\nTest set: \t\t{}".format(test_text.shape))
         return train_text, val_text, test_text
             
         

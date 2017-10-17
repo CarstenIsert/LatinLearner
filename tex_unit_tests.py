@@ -39,16 +39,42 @@ class TestReadingData(unittest.TestCase):
     
     def testLoadData1(self):
         data = self.text_data.load_tokenized_data('test_library')
+        
         self.assertEqual(['Rerum', 'gestarum', 'divi', 'Augusti', ',', 'quibus', 'orbem', 'terrarum', 'imperio', 'populi'], data[:10])
         self.assertEqual(126, len(data))
 
     def testGenerateDataSet(self):
         texts = self.text_data.load_tokenized_data('test_library')
         int_text, int2word, vocabulary_size = self.text_data.generate_tokenized_dataset(texts)
+        
         self.assertEqual([0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 3, 0, 0, 0], int_text[:20])
         self.assertEqual({0: 'HAPAX', 1: ',', 2: 'et', 3: 'in', 4: '.', 5: 'cum', 6: 'ludere'}, int2word)
         self.assertEqual(6, vocabulary_size)
+
+    def testLoadCharacterSet(self):
+        text = self.text_data.load_character_data('test_library')
         
+        self.assertEqual(' Rerum gestarum divi Augusti', text[:28])
+        self.assertEqual(753, len(text))
+     
+    def testGenerateCharacterSet(self):
+        text = self.text_data.load_character_data('test_library')
+        int_text, int2char, char2int, vocabulary_size = self.text_data.generate_character_dataset(text)
+        
+        self.assertTrue(([1, 11, 16, 27, 30, 22,  1, 18, 16, 28] == int_text[:10]).all())
+        self.assertEqual(',', int2char[3])
+        self.assertEqual(3, char2int[','])
+        self.assertEqual(33, vocabulary_size)
+        
+    def testStandardSplit(self):
+        text = self.text_data.load_character_data('test_library')
+        int_text, _, _, _ = self.text_data.generate_character_dataset(text)
+        train_text, val_text, test_text = self.text_data.split_int_text(int_text)
+ 
+        self.assertEqual(677, len(train_text))
+        self.assertEqual(38, len(val_text))
+        self.assertEqual(38, len(test_text))
+
 class TestWordEmbedding(unittest.TestCase):
     def setUp(self):
         self.text_data = text_handling.TextData()
