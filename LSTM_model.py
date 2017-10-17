@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import time
-
+import math
 
 def get_batches(arr, n_seqs, n_steps):
     '''Create a generator that returns batches of size
@@ -33,7 +33,7 @@ def get_batches(arr, n_seqs, n_steps):
         yield x, y
 
 def build_inputs(batch_size, num_steps):
-    ''' Define TensorFlow placeholders for inputs, targets, and dropout 
+    ''' Define TensorFlow placeholders for inputs, targets, and dropout with Tensorboard info
     
         Arguments
         ---------
@@ -41,14 +41,17 @@ def build_inputs(batch_size, num_steps):
         num_steps: Number of sequence steps in a batch
         
     '''
-    # Declare placeholders we'll feed into the graph
-    inputs = tf.placeholder(tf.int32, [batch_size, num_steps], name='inputs')
-    targets = tf.placeholder(tf.int32, [batch_size, num_steps], name='labels')
+    with tf.name_scope('input'):
+        inputs = tf.placeholder(tf.int32, [batch_size, num_steps], name='inputs')
+        
+    with tf.name_scope('labels'):
+        targets = tf.placeholder(tf.int32, [batch_size, num_steps], name='labels')
     
-    # Keep probability placeholder for drop out layers
-    dropout_keep_prob = tf.placeholder(tf.float32, name='dropout_keep_prob')
+    with tf.name_scope('dropout'):
+        dropout_keep_prob = tf.placeholder(tf.float32, name='dropout_keep_prob')
     
     return inputs, targets, dropout_keep_prob
+
 
 def build_lstm(lstm_size, num_lstm_layers, batch_size, dropout_keep_prob):
     ''' Build LSTM cell.
@@ -61,9 +64,11 @@ def build_lstm(lstm_size, num_lstm_layers, batch_size, dropout_keep_prob):
         batch_size: Batch size
 
     '''
-    def build_cell(num_units, dropout_keep_prob):
-        lstm = tf.contrib.rnn.BasicLSTMCell(num_units)
-        drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=dropout_keep_prob)
+    def build_cell(idx, num_units, dropout_keep_prob):
+        layer_name = 'BasicLSTM' + str(idx)
+        with tf.name_scope(layer_name):
+            lstm = tf.contrib.rnn.BasicLSTMCell(num_units)
+            drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=dropout_keep_prob)
         return drop
         
 # TODO: Need to fix this later. When launching in a python environment this works...
@@ -79,11 +84,12 @@ def build_lstm(lstm_size, num_lstm_layers, batch_size, dropout_keep_prob):
         # Stack up multiple LSTM layers, for deep learning
         #cell = tf.contrib.rnn.MultiRNNCell([drop] * num_lstm_layers)
 #    else:
-    cell = tf.contrib.rnn.MultiRNNCell([build_cell(lstm_size, dropout_keep_prob) for _ in range(num_lstm_layers)])    
+    cell = tf.contrib.rnn.MultiRNNCell([build_cell(idx, lstm_size, dropout_keep_prob) for idx in range(num_lstm_layers)])    
     
     initial_state = cell.zero_state(batch_size, tf.float32)
     
     return cell, initial_state
+
 
 def build_output(lstm_output, in_size, out_size):
     ''' Build a softmax layer, return the softmax output and logits.
@@ -110,10 +116,12 @@ def build_output(lstm_output, in_size, out_size):
     
     # Since output is a bunch of rows of RNN cell outputs, logits will be a bunch
     # of rows of logit outputs, one for each step and sequence
-    logits = tf.matmul(x, softmax_w) + softmax_b
+    with tf.name_scope('Logits'):
+        logits = tf.matmul(x, softmax_w) + softmax_b
     
     # Use softmax to get the probabilities for predicted characters
-    out = tf.nn.softmax(logits, name='predictions')
+    with tf.name_scope('Softmax_output'):
+        out = tf.nn.softmax(logits, name='predictions')
     
     return out, logits
 
@@ -132,8 +140,10 @@ def build_loss(logits, targets, num_classes):
     y_reshaped =  tf.reshape(y_one_hot, logits.get_shape())
     
     # Softmax cross entropy loss
-    loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_reshaped)
-    loss = tf.reduce_mean(loss)
+    with tf.name_scope('Loss'):
+        loss = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=y_reshaped)
+        loss = tf.reduce_mean(loss)
+        tf.summary.scalar('loss', loss)
     
     # TODO: Later add accuracy    
     return loss
@@ -142,28 +152,35 @@ def build_optimizer(loss, learning_rate, grad_clip):
     ''' Build optmizer for training, using gradient clipping.
     
         Arguments:
+        ----------
         loss: Network loss
         learning_rate: Learning rate for optimizer
     
     '''
     # Optimizer for training, using gradient clipping to control exploding gradients
-    tvars = tf.trainable_variables()
-    grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), grad_clip)
-    train_op = tf.train.AdamOptimizer(learning_rate)
-    optimizer = train_op.apply_gradients(zip(grads, tvars))
+    with tf.name_scope('Optimizer'):
+        tvars = tf.trainable_variables()
+        grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), grad_clip)
+        train_op = tf.train.AdamOptimizer(learning_rate)
+        optimizer = train_op.apply_gradients(zip(grads, tvars))
     
     return optimizer
 
 
-def pick_top_n(preds, vocab_size, top_n=5):
-    '''Choose the next character based on the top_n most likely characters
+def pick_top_n(softmax_distribution, dist_size, top_n=5):
+    ''' Choose the next character based on the top_n most likely characters
+    
+        Arguments:
+        ----------
+        softmax_distribution: Softmax distribution / prediction for all characters
+        dist_size: Size of the distribution to sample from
+        top_n: Only sample from the top n candidates
     '''
-    p = np.squeeze(preds)
-    p[np.argsort(p)[:-top_n]] = 0
-    p = p / np.sum(p)
-    c = np.random.choice(vocab_size, 1, p=p)[0]
-    return c
-
+    distribution = np.squeeze(softmax_distribution)
+    distribution[np.argsort(distribution)[:-top_n]] = 0
+    distribution = distribution / np.sum(distribution)
+    int_char = np.random.choice(dist_size, 1, p=distribution)[0]
+    return int_char
 
 
 class CharRNN:
@@ -174,41 +191,64 @@ class CharRNN:
         # When we're using this network for sampling later, we'll be passing in
         # one character at a time, so providing an option for that
         if sampling == True:
-            batch_size, num_steps = 1, 1
+            self.batch_size, self.num_steps = 1, 1
         else:
-            batch_size, num_steps = batch_size, num_steps
+            self.batch_size, self.num_steps = batch_size, num_steps
 
         tf.reset_default_graph()
         
+        self.lstm_size = lstm_size
+        
         # Build the input placeholder tensors
-        self.inputs, self.targets, self.keep_prob = build_inputs(batch_size, num_steps)
+        self.inputs, self.targets, self.keep_prob = build_inputs(self.batch_size, self.num_steps)
 
         # Build the LSTM cell
-        cell, self.initial_state = build_lstm(lstm_size, num_lstm_layers, batch_size, self.keep_prob)
+        cell, self.initial_state = build_lstm(self.lstm_size, num_lstm_layers, self.batch_size, self.keep_prob)
 
         ### Run the data through the RNN layers
         # First, one-hot encode the input tokens
-        x_one_hot = tf.one_hot(self.inputs, num_classes)
+        with tf.name_scope('One_hot_input'):
+            x_one_hot = tf.one_hot(self.inputs, num_classes)
+            tf.summary.histogram('One_hot', x_one_hot)
         
-        # Run each sequence step through the RNN with tf.nn.dynamic_rnn 
-        outputs, state = tf.nn.dynamic_rnn(cell, x_one_hot, initial_state=self.initial_state)
-        self.final_state = state
+        # Run each sequence step through the RNN with tf.nn.dynamic_rnn
+        with tf.name_scope('RNN_Cells'): 
+            rnn_outputs, state = tf.nn.dynamic_rnn(cell, x_one_hot, initial_state=self.initial_state)
+            tf.summary.histogram('rnn_out', rnn_outputs)
+            self.final_state = state
         
         # Get softmax predictions and logits
-        self.prediction, self.logits = build_output(outputs, lstm_size, num_classes)
+        self.prediction, self.logits = build_output(rnn_outputs, lstm_size, num_classes)
         
         # Loss and optimizer (with gradient clipping)
         self.loss = build_loss(self.logits, self.targets, num_classes) 
         self.optimizer = build_optimizer(self.loss, learning_rate, grad_clip)
         
 
-    def train(self, train_text, val_text, epochs=10, continue_training = False):
+    def train(self, train_text, val_text, epochs=10, continue_training = False, dropout_keep_prob=0.5):
+        ''' Train the model, save checkpoints and write Tensorboard information
+        
+            Arguments:
+            
+            Returns:
+            --------
+            lowest_train_loss: Lowest training loss
+            lowest_val_loss: Lowest validation loss
+        '''
         save_every_n_iterations = 20
         validate_every_n_iterations = 5
         print_every_n_iterations = 2
     
         saver = tf.train.Saver(max_to_keep=100)
-        with tf.Session() as sess:   
+                
+        lowest_train_loss = math.inf
+        lowest_val_loss = math.inf
+                
+        with tf.Session() as sess:
+            # Setup for Tensorboard   
+            merged = tf.summary.merge_all()
+            train_writer = tf.summary.FileWriter('./logs', sess.graph)
+
             if continue_training == False:
                 sess.run(tf.global_variables_initializer())
             else:
@@ -225,13 +265,14 @@ class CharRNN:
                     start = time.time()
                     feed = {self.inputs: x,
                             self.targets: y,
-                            self.keep_prob: self.dropout_keep_prob,
+                            self.keep_prob: dropout_keep_prob,
                             self.initial_state: new_state}
                     batch_loss, new_state, _ = sess.run([self.loss, 
                                                          self.final_state, 
                                                          self.optimizer], 
                                                          feed_dict=feed)
                     
+                    if batch_loss < lowest_train_loss: lowest_train_loss = batch_loss
                     end = time.time()
                 
                     # TODO: Better progress solution! TQPM or so?!
@@ -245,6 +286,7 @@ class CharRNN:
                     if (counter % save_every_n_iterations) == 0:
                         saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, self.lstm_size))
                         
+                    # Validate and write Tensorboard Information
                     if (counter % validate_every_n_iterations) == 0:
                         val_losses = []
                         val_state = sess.run(self.initial_state)
@@ -253,16 +295,21 @@ class CharRNN:
                                     self.targets: y,
                                     self.keep_prob: 1.,
                                     self.initial_state: val_state}
-                            val_loss, val_state = sess.run([self.loss, 
-                                                            self.final_state], 
-                                                            feed_dict=feed)
+                            summary, val_loss, val_state = sess.run([merged,
+                                                                     self.loss, 
+                                                                     self.final_state], 
+                                                                     feed_dict=feed)
                             val_losses.append(val_loss)
-                        print("Val loss: {:.3f}".format(np.mean(val_losses)))
-                        
-            
+                            train_writer.add_summary(summary, counter)
+                            
+                        val_loss = np.mean(val_losses)
+                        if val_loss < lowest_val_loss: lowest_val_loss = val_loss
+                        print("Val loss: {:.3f}".format(val_loss))
+                                   
             print("Finished training...")
             saver.save(sess, "checkpoints/i{}_l{}.ckpt".format(counter, self.lstm_size))
-
+            train_writer.close()
+            return lowest_train_loss, lowest_val_loss
 
     def sample(self, n_samples, character_set_size, int2char_mapping, char2int_mapping, prime="salve"):
         ''' Generate a text sample of specified size from the specified model checkpoint.
@@ -279,8 +326,9 @@ class CharRNN:
         '''
         samples = []
 
-        # TODO: Only restore the model once for smapling!
+        # TODO: Only restore the model once for sampling!
         checkpoint = tf.train.latest_checkpoint('checkpoints')
+        print("Resotring from checkpoint: ", checkpoint)
         saver = tf.train.Saver(max_to_keep=100)
         
         with tf.Session() as sess:
