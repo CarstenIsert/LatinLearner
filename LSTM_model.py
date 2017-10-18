@@ -72,23 +72,9 @@ def build_lstm(lstm_size, num_lstm_layers, batch_size, dropout_keep_prob):
     def build_cell(idx, num_units, dropout_keep_prob):
         layer_name = 'BasicLSTM' + str(idx)
         with tf.name_scope(layer_name):
-            lstm = tf.contrib.rnn.BasicLSTMCell(num_units)
-            drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=dropout_keep_prob)
-        return drop
+            lstm = tf.contrib.rnn.LayerNormBasicLSTMCell(num_units, dropout_keep_prob=dropout_keep_prob)
+        return lstm
         
-# TODO: Need to fix this later. When launching in a python environment this works...
-# Now we assume that we have TF 1.1 or greater...
-#    if tf.__version__ == '1.0.0':
-        ### Build the LSTM Cell
-        # Use a basic LSTM cell
-#        lstm = tf.contrib.rnn.BasicLSTMCell(lstm_size)
-
-        # Add dropout to the cell outputs
-#        drop = tf.contrib.rnn.DropoutWrapper(lstm, output_keep_prob=dropout_keep_prob)
-
-        # Stack up multiple LSTM layers, for deep learning
-        #cell = tf.contrib.rnn.MultiRNNCell([drop] * num_lstm_layers)
-#    else:
     with tf.name_scope('StackedRNN'):
         cell = tf.contrib.rnn.MultiRNNCell([build_cell(idx, lstm_size, dropout_keep_prob) for idx in range(num_lstm_layers)])    
     
@@ -274,9 +260,9 @@ class CharRNN:
             lowest_train_loss: Lowest training loss
             lowest_val_loss: Lowest validation loss
         '''
-        save_every_n_iterations = 20
-        validate_every_n_iterations = 8
-        print_every_n_iterations = 10
+        save_every_n_iterations = 50
+        validate_every_n_iterations = 12
+        print_every_n_iterations = 12
     
         lowest_train_loss = math.inf
         lowest_val_loss = math.inf
