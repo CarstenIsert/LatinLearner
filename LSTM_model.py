@@ -156,7 +156,8 @@ def build_optimizer(loss, learning_rate, grad_clip):
         grads, _ = tf.clip_by_global_norm(tf.gradients(loss, tvars), grad_clip)
         train_op = tf.train.AdamOptimizer(learning_rate)
         optimizer = train_op.apply_gradients(zip(grads, tvars))
-    
+        tf.summary.histogram('gradients', grads)
+        
     return optimizer
 
 
@@ -260,9 +261,9 @@ class CharRNN:
             lowest_train_loss: Lowest training loss
             lowest_val_loss: Lowest validation loss
         '''
-        save_every_n_iterations = 50
-        validate_every_n_iterations = 12
-        print_every_n_iterations = 12
+        save_every_n_iterations = 400
+        validate_every_n_iterations = 200
+        print_every_n_iterations = 50
     
         lowest_train_loss = math.inf
         lowest_val_loss = math.inf
