@@ -1,6 +1,7 @@
 import os
 import re
 from string import digits
+from string import punctuation
 
 ignore_list = ['.DS_Store']
 
@@ -8,7 +9,12 @@ def remove_arabic_numbers(raw_text):
     remove_digits = str.maketrans('', '', digits)
     output = raw_text.translate(remove_digits)
     return output
-  
+
+def remove_punctuation(raw_text):
+    remove_punctuation_table = str.maketrans('', '', punctuation)
+    output = raw_text.translate(remove_punctuation_table)
+    return output
+      
 def remove_brackets(raw_text):
     output = re.sub("[\(\[].*?[\)\]]", "", raw_text)
     return output

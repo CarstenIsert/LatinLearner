@@ -1,0 +1,15 @@
+: people
+puer puella servus serva
+puer puella vir mulier
+puer puella pater mater
+puer puella rex regina
+puer puella filius filia
+puer puella amicus amica
+vir mulier servus serva
+vir mulier pater mater
+vir mulier filius filia
+vir mulier rex regina
+: opposite
+beatus miser lentus celer
+lentus celer beatus miser
+
