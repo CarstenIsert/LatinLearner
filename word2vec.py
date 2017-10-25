@@ -41,6 +41,7 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.tensorboard.plugins import projector
 
 # Optimized implementation of loading and feeding the data
 # TODO: Have a detailed look at this code
@@ -75,7 +76,7 @@ flags.DEFINE_integer("concurrent_steps", 12,
 flags.DEFINE_integer("window_size", 5,
                      "The number of words to predict to the left and right "
                      "of the target word.")
-flags.DEFINE_integer("min_count", 5,
+flags.DEFINE_integer("min_count", 3,
                      "The minimum number of word occurrences for it to be "
                      "included in the vocabulary.")
 flags.DEFINE_float("subsample", 1e-3,
@@ -412,10 +413,12 @@ class Word2Vec(object):
   def save_vocab(self):
     """Save the vocabulary to a file so the model can be reloaded."""
     opts = self._options
+
     with open(os.path.join(opts.save_path, "vocab.txt"), "w") as f:
+      f.write("Word\tFrequency\n")
       for i in xrange(opts.vocab_size):
-        vocab_word = tf.compat.as_text(opts.vocab_words[i]).encode("utf-8")
-        f.write("%s %d\n" % (vocab_word,
+        vocab_word = tf.compat.as_text(opts.vocab_words[i])
+        f.write("%s\t%d\n" % (vocab_word,
                              opts.vocab_counts[i]))
 
   def _train_thread_body(self):
@@ -433,6 +436,13 @@ class Word2Vec(object):
 
     summary_op = tf.summary.merge_all()
     summary_writer = tf.summary.FileWriter(opts.save_path, self._session.graph)
+
+    visualize_config = projector.ProjectorConfig()
+    visualize_embedding = visualize_config.embeddings.add()
+    visualize_embedding.tensor_name = self._emb.name
+    visualize_embedding.metadata_path = os.path.join(opts.save_path, 'vocab.txt') 
+    projector.visualize_embeddings(summary_writer, visualize_config)
+
     workers = []
     for _ in xrange(opts.concurrent_steps):
       t = threading.Thread(target=self._train_thread_body)
@@ -498,6 +508,7 @@ class Word2Vec(object):
         for j in xrange(4):
           if idx[question, j] == sub[question, 3]:
             # Bingo! We predicted correctly. E.g., [italy, rome, france, paris].
+            print("Correct: ", question)
             correct += 1
             break
           elif idx[question, j] in sub[question, :3]:
@@ -518,7 +529,7 @@ class Word2Vec(object):
       if c not in [w0, w1, w2]:
         print(c)
         break
-    print("unknown")
+    print("-----")
 
   def nearby(self, words, num=20):
     """Prints out nearby words given a list of words."""
@@ -542,31 +553,33 @@ def _start_shell(local_ns=None):
 
 
 def main(_):
-  """Train a word2vec model."""
-  if not FLAGS.train_data or not FLAGS.eval_data or not FLAGS.save_path:
-    print("--train_data --eval_data and --save_path must be specified.")
-    sys.exit(1)
-  opts = Options()
-  with tf.Graph().as_default(), tf.Session() as session:
-    with tf.device("/cpu:0"):
-      model = Word2Vec(opts, session)
-      model.read_analogies() # Read analogy questions
+    """Train a word2vec model."""
+    if not FLAGS.train_data or not FLAGS.eval_data or not FLAGS.save_path:
+        print("--train_data --eval_data and --save_path must be specified.")
+        sys.exit(1)
+  
+    opts = Options()
+    with tf.Graph().as_default(), tf.Session() as session:
+        with tf.device("/cpu:0"):
+            model = Word2Vec(opts, session)
+            model.read_analogies()  # Read analogy questions
     
-    if FLAGS.training:
-        for _ in xrange(opts.epochs_to_train):
-          model.train()  # Process one epoch
-          model.eval()  # Eval analogies.
-        # Perform a final save.
-        model.saver.save(session,
+        if FLAGS.training:
+            for _ in xrange(opts.epochs_to_train):
+                model.train()  # Process one epoch
+                model.eval()  # Eval analogies.
+        
+            # Perform a final save.
+            model.saver.save(session,
                          os.path.join(opts.save_path, "model.ckpt"),
                          global_step=model.global_step)
 
-    if FLAGS.interactive:
-      # E.g.,
-      # [0]: model.analogy(b'france', b'paris', b'russia')
-      # [1]: model.nearby([b'proton', b'elephant', b'maxwell'])
-      _start_shell(locals())
+        if FLAGS.interactive:
+            print("Interactive mode: Please enter commands like...")
+            print("[0]: model.analogy(b'sum', b'es', b'possum')")
+            print("[1]: model.nearby([b'caesar', b'cicero'])")
+            _start_shell(locals())
 
 
 if __name__ == "__main__":
-  tf.app.run()
+    tf.app.run()

@@ -1,6 +1,6 @@
 : people
 puer puella servus serva
-puer puella vir mulier
+puer puella vir virgo
 puer puella pater mater
 puer puella rex regina
 puer puella filius filia
@@ -9,7 +9,27 @@ vir mulier servus serva
 vir mulier pater mater
 vir mulier filius filia
 vir mulier rex regina
+amicus amica pater mater
+amicus amica puer puella
+amicus amica vir virgo
 : opposite
 beatus miser lentus celer
 lentus celer beatus miser
-
+felix infelix lentus celer
+: verbs / pronomina
+ego tu sum es
+ego tu possum potes
+ego tu eram eras
+ego tu mihi tibi
+ego nos mihi nobis
+sum es ego tu
+sum es facio facis
+sum es audio audis
+sum es rideo rides
+sum es possum potes
+sum est possum potest
+sum est facio facit
+sum est rideo ridet
+: pronomina
+hic hoc ille illud
+hunc hoc illum illud

@@ -23,6 +23,9 @@ As I wanted to learn something on data collection and scraping, I developed the 
 
 All the data will be stored in a directory called 'library' which you have to **generate with the scraping script before running the cleaning script**.
 
+The final data I worked with contained about 690 Latin texts with an overall size of around 24MB.
+
+
 ## Data Cleaning and Processing
 
 The data from the scraping tool contains a lot of information that we don't want to have the neural network to learn or output to the user. Therefore, it is essential to clean this data. This is done by running the script [`clean_data.py`](clean_data.py).
@@ -36,6 +39,7 @@ The output can then directly be used for processing with the [LSTM model](LSTM_m
 
 To make the text usable for the embeddings, you also need to remove all punctuation, which can be done by including a call to the respective function in the cleaning script.
 Additionally, you need to concatenate all the small files into one large file by using `cat clean_library/*.txt > latin_texts.txt`.
+
 
 ## Models
 
@@ -82,13 +86,51 @@ Usually, you would need some kind of question answer pairs to build a chatbot. A
 
 ### Char RNN
 
+training loss, examples
+
 ### Embeddings
 
+To generate really useful embeddings, the dataset should cover really large quantities of the language. This is not really possible, as Latin texts are very limited and not generated currently in large quantities online.
 
+Additionally, the way Latin verbs and nouns are declined and conjugated lead to many different tokens, which more or less have the same meaning. 
+
+That way, it is really important, that we work with the most words we can get. So I set the minimum frequency to 3 for each word to be included.
+
+Looking at the evaluation data, I observed, that in the beginning of the training, the evaluation actually produced some reasonable results, but that went away after longer times of training, usually after 4 or 5 epochs. So I used early stopping, focusing on useful results and not the loss.
+
+Some examples that the embeddings could model:
+
+```
+In [3]: model.analogy(b'puer', b'puella', b'filius')
+b'filia'
+
+In [6]: model.analogy(b'vir', b'mulier', b'pater')
+b'mater'
+
+In [39]: model.analogy(b'sum', b'es', b'possum')
+b'potes'
+
+In [4]: model.nearby([b'puer'])
+
+b'puer'
+=====================================
+b'puer'              1.0000
+b'hospes'            0.9082
+b'adest'             0.8787
+b'felix'             0.8766
+b'tristis'           0.8680
+b'infelix'           0.8671
+b'parens'            0.8668
+b'achilles'          0.8663
+b'ferus'             0.8638
+```
+
+nearby, analogy, tSNE plot with words
 
 ## Future work / TODO
 
-
+1. As pointed out by reference [6], there has been a lot of research to improve embeddings, however not many techniques have been successful in improving downstream applications. As we are dealing with a very structured language with only little data available, the use of subword-level embeddings or language models would be probably something useful. 
+ 
 
 ## Environment
 
@@ -106,8 +148,9 @@ Using GPL v3 for this project. Details see [LICENSE](LICENSE) file in the repo.
 
 ## References
 
-* Tensorflow word2vec Tutorial https://www.tensorflow.org/tutorials/word2vec 
-* and https://github.com/tensorflow/models/tree/master/tutorials/embedding
-* Udacity AI Nanodegree Anna KaRNNa notebook: https://github.com/udacity/deep-learning/tree/master/intro-to-rnns
-* Keras Examples: https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
-* Keras word2vec Tutorial: http://adventuresinmachinelearning.com/word2vec-keras-tutorial/
+[1] Tensorflow word2vec Tutorial https://www.tensorflow.org/tutorials/word2vec 
+[2] and https://github.com/tensorflow/models/tree/master/tutorials/embedding
+[3] Udacity AI Nanodegree Anna KaRNNa notebook: https://github.com/udacity/deep-learning/tree/master/intro-to-rnns
+[4] Keras Examples: https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
+[5] Keras word2vec Tutorial: http://adventuresinmachinelearning.com/word2vec-keras-tutorial/
+[6] http://ruder.io/word-embeddings-2017/?utm_campaign=Revue%20newsletter&utm_medium=Newsletter&utm_source=The%20Wild%20Week%20in%20AI
