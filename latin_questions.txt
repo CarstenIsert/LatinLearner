@@ -9,6 +9,7 @@ vir mulier servus serva
 vir mulier pater mater
 vir mulier filius filia
 vir mulier rex regina
+pater mater vir mulier
 amicus amica pater mater
 amicus amica puer puella
 amicus amica vir virgo
