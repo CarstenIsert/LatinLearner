@@ -86,17 +86,53 @@ Usually, you would need some kind of question answer pairs to build a chatbot. A
 
 ### Char RNN
 
-training loss, examples
+I did some experiments with different types of models which are documented here:
+
+1. Based on other projects I have done, I selected a 2 layer LSTM model with 512 nodes each, the BasicLSTM Cell was used and Dropout trained on the small_library with 10 epochs.
+2. Same network as model 1, but the BasicLSTMCell was replaced with a LayerNormBasicLSTMCell already including dropout. The general recommendation is to use batch or layer normalization, especially for RNNs. In Keras this can be achieved easily. In Tensorflow this was the best solution I could find.
+3. As the experiments with the small_library were promising, I tansfered the model now to AWS and trained on the whole dataset in the clean_library and trained 61% of the first epoch. I stopped there to have a short evaluation of this model.
+4. Now I trained the model from point 3 for 5 epochs which took several hours. I stopped the training training and validation loss saturated.  
+
+I did not experiment with larger models as I think the size of the input data is not enough to justify much longer training and much larger models. There seems to be no overfitting and other enhancements would probably be more beneficial than larger networks. Additionally, it is quite difficult to judge the real quality of the generated text and there must be a detailed evaluation on how to make good use of it. For the larger models, there is no test loss, as this is generated at the end of the training and I stopped it early. I did not expect to see any fundamental impact.
+
+Discussions with experts on Latin will follow up.
+
+| Model | Training loss | Validation loss | Test loss | Sample text                                                |
+|-------|---------------|-----------------|-----------|------------------------------------------------------------|
+| 1     | 2.1488        | 2.080           | 2.03701   | ne cullum intum adem aditiam ponsilia senti sibe se ponsis |
+| 2     | 1.9530        | 1.900           | 1.8513    | incelere subitis et sed exilla callam concidarat, quam sec |
+| 3     | 1.6592        | 1.500           | none      | nullum in intendit instrumentum est, quo illud est audere  |
+| 4     | 1.4           | 1.32            | none      | cetera quidem ex aede sua speciem et cur ad medio periculo |
+
+Here are some more examples for a conversation of the chatbot using the RNN from model 4:
+
+```
+Prompt or exit: Salve caesar!
+
+nec si quid ad se incendium audeat, quia post hoc intellexit in aliquam perturbatum est
+
+Prompt or exit: Aleae iactae sunt.
+
+d eum autem ius ex parte aut cum iis propere ac portam exercitum et cum ingenio ad se petebant et pr
+
+Prompt or exit: in deterius deinde cotidie data res est sive luxu temporum nihil enim tam mortiferum ingeniis quam luxuria est sive
+
+nam quod ex illo de senectute dicitur, qui illud est integrum et audiendi seruilitatis cognoverit, q
+
+```
+
+The output is either truncated after a stop token like . ! or ? or when 100 characters have been generated.
+The text generally feels very Latin, but doesn't make much sense. To improve the performance and make something useful out of this, a detailled discussion with Latin language experts must be done. Please get in touch with me, if you are interested.
 
 ### Embeddings
 
 To generate really useful embeddings, the dataset should cover really large quantities of the language. This is not really possible, as Latin texts are very limited and not generated currently in large quantities online.
 
-Additionally, the way Latin verbs and nouns are declined and conjugated lead to many different tokens, which more or less have the same meaning. 
+Additionally, the way Latin nouns are declined and verbs are conjugated lead to many different tokens/words, which more or less have the same meaning. 
 
 That way, it is really important, that we work with the most words we can get. So I set the minimum frequency to 3 for each word to be included.
 
-Looking at the evaluation data, I observed, that in the beginning of the training, the evaluation actually produced some reasonable results, but that went away after longer times of training, usually after 4 or 5 epochs. So I used early stopping, focusing on useful results and not the loss.
+The validation set is currently really small and needs to be extended significantly. With the set of 30 questions, the validation accuracy could only reach 30%. Most of the times it works pretty well for words like `ego`, `tu`, `sum` etc. which have very high frequencies and are well defined. For relationships between nouns, the analogy only works sometimes, more in the early phases of training and not so well in he later phases.
 
 Some examples that the embeddings could model:
 
@@ -111,9 +147,6 @@ In [39]: model.analogy(b'sum', b'es', b'possum')
 b'potes'
 
 In [4]: model.nearby([b'puer'])
-
-b'puer'
-=====================================
 b'puer'              1.0000
 b'hospes'            0.9082
 b'adest'             0.8787
@@ -125,12 +158,36 @@ b'achilles'          0.8663
 b'ferus'             0.8638
 ```
 
-nearby, analogy, tSNE plot with words
+The visualization of the embeddings using Tensorboard shows interesting structures.
+However, when looking at the details of the words it is very hard to find meaningful clusters.
 
-## Future work / TODO
+The best results were achieved using a perplexity of 35 and a learning rate of 100.
+The results converged quite quickly (just a few hundred iterations).
 
-1. As pointed out by reference [6], there has been a lot of research to improve embeddings, however not many techniques have been successful in improving downstream applications. As we are dealing with a very structured language with only little data available, the use of subword-level embeddings or language models would be probably something useful. 
- 
+<img src="assets/tensorboard_tSNE_end_pointcloud.jpeg" alt="tSNE Pointcloud" style="width: 700px;"/>
+
+Visualizing the dataset as a nice pointcloud shows a general structure. The color coding displays the frequencies.
+
+<img src="assets/tensorboard_tSNE_end_wordcloud.jpeg" alt="tSNE Wordcloud" style="width: 700px;"/>
+
+Here we can see each datapoint displayed with the matching word.
+
+<img src="assets/tensorboard_tSNE_end_mus.jpeg" alt="tSNE words ending with mus" style="width: 700px;"/>
+
+Words ending with *mus are well distributed over the whole space.
+
+<img src="assets/tensorboard_tSNE_end_selected.jpeg" alt="tSNE word selected" style="width: 700px;"/>
+
+An example with a word selected and relationships shown.
+
+
+## Future work
+
+1. As pointed out by reference 6, there has been a lot of research to improve embeddings, however not many techniques have been successful in improving downstream applications. As we are dealing with a very structured language with only little data available, the use of subword-level embeddings or language models would be probably something useful. 
+2. Need to disambiguate between u and v, which are sometimes used both for u.
+3. Further improve text quality. There are some instances where english words are included or Latin numbers like xvi.
+4. The validation set must be extended significantly.
+5. Discuss the results with Latin language experts and define reasonable follow up actions.
 
 ## Environment
 
@@ -144,13 +201,13 @@ Anybody interested in working together on this please contact me through the mai
 
 ## License
 
-Using GPL v3 for this project. Details see [LICENSE](LICENSE) file in the repo.
+Using GPL v3 for this project. Details see [LICENSE](LICENSE) file in the repo. The files taken from the Tensorflow tutorials stay under the mentioned license which is referenced in the file.
 
 ## References
 
-[1] Tensorflow word2vec Tutorial https://www.tensorflow.org/tutorials/word2vec 
-[2] and https://github.com/tensorflow/models/tree/master/tutorials/embedding
-[3] Udacity AI Nanodegree Anna KaRNNa notebook: https://github.com/udacity/deep-learning/tree/master/intro-to-rnns
-[4] Keras Examples: https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py
-[5] Keras word2vec Tutorial: http://adventuresinmachinelearning.com/word2vec-keras-tutorial/
-[6] http://ruder.io/word-embeddings-2017/?utm_campaign=Revue%20newsletter&utm_medium=Newsletter&utm_source=The%20Wild%20Week%20in%20AI
+1. [Tensorflow word2vec Tutorial](https://www.tensorflow.org/tutorials/word2vec) 
+2. [and extended tutorial](https://github.com/tensorflow/models/tree/master/tutorials/embedding)
+3. [Udacity AI Nanodegree Anna KaRNNa notebook](https://github.com/udacity/deep-learning/tree/master/intro-to-rnns)
+4. [Keras Examples](https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py)
+5. [Keras word2vec Tutorial (not recommended for Keras within Tensorflow)](http://adventuresinmachinelearning.com/word2vec-keras-tutorial/)
+6. [2017 trends in word embeddings](http://ruder.io/word-embeddings-2017/?utm_campaign=Revue%20newsletter&utm_medium=Newsletter&utm_source=The%20Wild%20Week%20in%20AI)
