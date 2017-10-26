@@ -71,7 +71,8 @@ python word2vec.py \
 
 If you want to restore the latest pretrained embedding model and experiment with an interactive Python session on the data, you should add the following arguments:
 
-```--training=False --checkpoint=latest
+```
+--training=False --checkpoint=latest
 ```
 
 The embedding model of the Latin Language with Keras in the [embedding.py](embedding.py) file is based on the model from the Keras word2vec tutorial mentioned in the references. The results are not really convincing. 
