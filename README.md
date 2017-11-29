@@ -184,7 +184,7 @@ An example with a word selected and relationships shown.
 
 ## Future work
 
-1. As pointed out by reference 6, there has been a lot of research to improve embeddings, however not many techniques have been successful in improving downstream applications. As we are dealing with a very structured language with only little data available, the use of subword-level embeddings or language models would be probably something useful. 
+1. As pointed out by reference 6, there has been a lot of research to improve embeddings, however not many techniques have been successful in improving downstream applications. As we are dealing with a very structured language with only little data available, the use of subword-level embeddings or language models would be probably something useful. It would be especially helpful to follow reference 7 as Latin matches the characteristics mentioned in this paper quite well. 
 2. Need to disambiguate between u and v, which are sometimes used both for u.
 3. Further improve text quality. There are some instances where english words are included or Latin numbers like xvi.
 4. The validation set must be extended significantly.
@@ -212,3 +212,4 @@ Using GPL v3 for this project. Details see [LICENSE](LICENSE) file in the repo. 
 4. [Keras Examples](https://github.com/fchollet/keras/blob/master/examples/lstm_text_generation.py)
 5. [Keras word2vec Tutorial (not recommended for Keras within Tensorflow)](http://adventuresinmachinelearning.com/word2vec-keras-tutorial/)
 6. [2017 trends in word embeddings](http://ruder.io/word-embeddings-2017/?utm_campaign=Revue%20newsletter&utm_medium=Newsletter&utm_source=The%20Wild%20Week%20in%20AI)
+7. [Character Aware Neural Language Models](https://arxiv.org/pdf/1508.06615.pdf)
